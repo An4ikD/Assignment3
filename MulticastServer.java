@@ -1,7 +1,10 @@
+import java.net.*;
+import java.io.*;
 
 public class MulticastServer {
 	
 	String address = "227.3.7.3";
+	int port = 4446;
 	MulticastSocket sock = null;
 	InetAddress group = null;
 	byte buf[];

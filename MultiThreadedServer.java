@@ -1,7 +1,8 @@
 import java.net.*;
 import java.io.*;
+import java.util.Map;
 
-public class MultiThreadedServer {
+public class MultiThreadedServer implements Runnable {
 	Socket csock;
 	InputStream sis = null;
 	OutputStream sos = null;
@@ -14,8 +15,12 @@ public class MultiThreadedServer {
 	public MultiThreadedServer(Socket csock, MulticastServer mcastServer, GroupData gData) {
 		this.csock = csock;
 		buf = new byte[256];
-		sis = csock.getInputStream();
-		sos = csock.getOutputStream();
+		try {	
+			sis = csock.getInputStream();
+			sos = csock.getOutputStream();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 		multicastServer = mcastServer;
 		groupData = gData;
 	}
@@ -27,13 +32,15 @@ public class MultiThreadedServer {
 		// Send group ID, name, and number of members.
 		response = "GROUPS " + groupData.id + "/" + 
 												 groupData.name + "/" + 
-												 groupData.members.size() + "\r\n";
-		sos.write(response.getBytes());
-		sos.flush();
+												 groupData.members.size();
+		sendResponse(response);
 
 		while (true) {
-			n = sis.read();
-
+			try {
+				n = sis.read();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 			if (n <= 0) {
 				// client has exited
 				break;
@@ -47,27 +54,35 @@ public class MultiThreadedServer {
 				for (Map.Entry <String, String> entry : groupData.members.entrySet()) {
 				    response += "/" + entry.getKey() + ":" + entry.getValue();
 				}
-				response += "\r\n";
-				sos.write(response.getBytes());
-				sos.flush();
+				sendResponse(response);
 			} else if (request.startsWith("JOIN")) {
 				// Client requests to join the group with the given ID
 				response = "GROUP " + groupData.id + "/" + 
 									 multicastServer.address + "/" +
-									 multicastServer.port + "\r\n";
-				groupData.addMember()
-			} else if (requests.startsWith("LEAVE")) {
+									 multicastServer.sock;
+				sendResponse(response);
+				//groupData.addMember();
+			} else if (request.startsWith("LEAVE")) {
 				
-			} else if (requests.startsWith("MSG")) {
+			} else if (request.startsWith("MSG")) {
 				// At any time, the client may send a chat message.
 				/*String msg = "";
 				msg = request.substr(4, n);*/
-				msg = request;
+				String msg = request;
 				multicastServer.sendMessage(msg);
 			} else {
 				// Invalid command!
 			}
 		}
+	}
 
+	void sendResponse(String response) {
+		response += "\r\n";
+		try {	
+			sos.write(response.getBytes());
+			sos.flush();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 }
