@@ -30,6 +30,7 @@ public class MultiThreadedServer implements Runnable {
 		// handle client
 		
 		// Send group ID, name, and number of members.
+		// GROUPS 1234/PSY/7
 		response = "GROUPS " + groupData.id + "/" + 
 												 groupData.name + "/" + 
 												 groupData.members.size();
@@ -48,27 +49,42 @@ public class MultiThreadedServer implements Runnable {
 
 			request = new String(buf, 0, n);
 
+			System.out.println("Client sent: " + request);
+
 			if (request.startsWith("WHO")) {
 				// Client requests the list of group members for the group with the given ID
 				response = "MEMBERS " + groupData.id + ":" + groupData.name;
 				for (Map.Entry <String, String> entry : groupData.members.entrySet()) {
-				    response += "/" + entry.getKey() + ":" + entry.getValue();
+				    response += "\n" + entry.getKey() + ":" + entry.getValue();
 				}
 				sendResponse(response);
 			} else if (request.startsWith("JOIN")) {
 				// Client requests to join the group with the given ID
 				response = "GROUP " + groupData.id + "/" + 
-									 multicastServer.address + "/" +
+									 multicastServer.address + "/" + 
 									 multicastServer.sock;
 				sendResponse(response);
-				//groupData.addMember();
+
+				String username = getNextToken(request, 5, n);
+				String address = csock.getRemoteSocketAddress().toString();
+				groupData.addMember(username, address);
+
+				String msg = "JOIN " + username + "/" + address;
+				multicastServer.sendMessage(msg);
 			} else if (request.startsWith("LEAVE")) {
-				
+				String address = csock.getRemoteSocketAddress().toString();
+				String username = groupData.getUsername(address);
+				groupData.removeMember(username, address);
+
+				String msg = "LEAVE " + username + "/" + address;
+				multicastServer.sendMessage(msg);
 			} else if (request.startsWith("MSG")) {
 				// At any time, the client may send a chat message.
-				/*String msg = "";
-				msg = request.substr(4, n);*/
-				String msg = request;
+				String address = csock.getRemoteSocketAddress().toString();
+				String username = groupData.getUsername(address);
+
+				String msg = username + "@" + address + " ";
+				msg += request.substring(4, n);
 				multicastServer.sendMessage(msg);
 			} else {
 				// Invalid command!
@@ -76,7 +92,7 @@ public class MultiThreadedServer implements Runnable {
 		}
 	}
 
-	void sendResponse(String response) {
+	public void sendResponse(String response) {
 		response += "\r\n";
 		try {	
 			sos.write(response.getBytes());
@@ -84,5 +100,17 @@ public class MultiThreadedServer implements Runnable {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+
+	public String getNextToken(String s, int pos, int n) {
+		String res = "";
+		for (int i = pos; i < n; i++) {
+			if (s.charAt(i) == ':' || s.charAt(i) == '/') {
+				break;
+			} else {
+				res += s.charAt(i);
+			}
+		}
+		return res;
 	}
 }

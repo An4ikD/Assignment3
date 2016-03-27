@@ -20,6 +20,7 @@ public class MulticastServer {
 	}
 
 	void sendMessage(String msg) {
+		msg += "\r\n";
 		try {
 			DatagramPacket smsg = new DatagramPacket(msg.getBytes(), 
 										msg.length(), group, 4446);
